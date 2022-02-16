@@ -53,6 +53,7 @@ type MqttClient struct {
 	b64Source      string
 	b64Destination string
 	subCh          chan struct{}
+	readyCh        chan struct{}
 }
 
 func NewClient(p pair) *MqttClient {
@@ -67,12 +68,11 @@ func NewClient(p pair) *MqttClient {
 		b64Source:      b64Source,
 		b64Destination: b64Destination,
 		subCh:          make(chan struct{}, 0),
+		readyCh:        make(chan struct{}, 0),
 	}
 
 	connOpts := pahomqtt.NewClientOptions().SetClientID(clientID).SetCleanSession(false).SetKeepAlive(0).SetConnectTimeout(1 * time.Second).AddBroker(p.source)
 	connOpts.OnConnect = client.onConnectHandler
-	connOpts.OnConnectionLost = client.connectionLostHandler
-	connOpts.OnReconnecting = client.reconnectHandler
 
 	mqttClient := pahomqtt.NewClient(connOpts)
 	client.mqttClient = mqttClient
@@ -93,6 +93,13 @@ func (client *MqttClient) Publish() {
 	}
 }
 
+func (client *MqttClient) Ready(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+	case <-client.readyCh:
+	}
+}
+
 func (client *MqttClient) IncrementReceivedPing() {
 	metricsTotalReceivedPing.WithLabelValues(client.pair.source, client.pair.destination).Inc()
 }
@@ -103,35 +110,6 @@ func (client *MqttClient) IncrementFailedPing() {
 
 func (client *MqttClient) SubCh() <-chan struct{} {
 	return client.subCh
-}
-
-func (client *MqttClient) Connected() bool {
-	return client.connected
-}
-
-func (client *MqttClient) setConnected() {
-	metricsConnectionState.WithLabelValues(client.pair.source, client.pair.destination).Set(1)
-	client.connected = true
-}
-
-func (client *MqttClient) setDisconnected() {
-	metricsConnectionState.WithLabelValues(client.pair.source, client.pair.destination).Set(0)
-	client.connected = false
-}
-
-func (client *MqttClient) incReconnectAttempt() {
-	client.reconnectMu.Lock()
-	client.reconnectCount++
-	metricsCurrentReconnectAttempts.WithLabelValues(client.pair.source, client.pair.destination).Set(float64(client.reconnectCount))
-	metricsTotalReconnectAttempts.WithLabelValues(client.pair.source, client.pair.destination).Inc()
-	client.reconnectMu.Unlock()
-}
-
-func (client *MqttClient) resetReconnectAttempt() {
-	client.reconnectMu.Lock()
-	client.reconnectCount = 0
-	metricsCurrentReconnectAttempts.WithLabelValues(client.pair.source, client.pair.destination).Set(0)
-	client.reconnectMu.Unlock()
 }
 
 func (client *MqttClient) Stop(ctx context.Context) error {
@@ -217,23 +195,13 @@ func (client *MqttClient) onConnectHandler(c pahomqtt.Client) {
 		return
 	}
 
-	fmt.Printf("Subscription started to topic: %s\n", client.subTopic)
-
-	client.setConnected()
-	if client.reconnectCount > 0 {
-		client.resetReconnectAttempt()
+	select {
+	case <-client.readyCh:
+	default:
+		close(client.readyCh)
 	}
-}
 
-func (client *MqttClient) connectionLostHandler(c pahomqtt.Client, e error) {
-	client.setDisconnected()
-	fmt.Fprintf(os.Stderr, "Connection lost to mqtt broker: %v\n", e)
-}
-
-func (client *MqttClient) reconnectHandler(c pahomqtt.Client, co *pahomqtt.ClientOptions) {
-	// setDisconnected() isn't needed here as OnReconnecting is called as the same time as OnConnectionLost: https://github.com/eclipse/paho.mqtt.golang/blob/master/client.go#L491
-	client.incReconnectAttempt()
-	fmt.Fprintf(os.Stderr, "Reconnecting to mqtt broker, attempt: %d\n", client.reconnectCount)
+	fmt.Printf("Subscription started to topic: %s\n", client.subTopic)
 }
 
 func subscriptionAllowed(token pahomqtt.Token, topic string) bool {

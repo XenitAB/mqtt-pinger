@@ -10,11 +10,14 @@ type Pinger interface {
 	IncrementFailedPing()
 	IncrementReceivedPing()
 	Publish()
+	Ready(ctx context.Context)
 }
 
 func startPing(ctx context.Context, tickerSeconds int, p pair, pinger Pinger) {
 	tickerDuration := time.Duration(tickerSeconds) * time.Second
 	ticker := time.NewTicker(tickerDuration)
+
+	pinger.Ready(ctx)
 
 	for {
 		select {
