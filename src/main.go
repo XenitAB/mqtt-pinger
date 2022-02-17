@@ -86,7 +86,7 @@ func run(mainCtx context.Context, cfg config) error {
 
 	fmt.Printf("server shutdown initiated by: %s\n", doneMsg)
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer shutdownCancel()
 
 	for i := range pairs {

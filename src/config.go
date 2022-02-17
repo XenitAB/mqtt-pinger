@@ -10,9 +10,9 @@ type config struct {
 func newConfig() (config, error) {
 	cfg := config{
 		Brokers: []string{
-			"10.244.6.11:1883",
-			"10.244.7.4:1883",
-			"10.244.4.11:1883",
+			"127.0.0.1:1883",
+			"127.0.0.1:1884",
+			"127.0.0.1:1885",
 		},
 		MetricsAddress: "0.0.0.0",
 		MetricsPort:    8081,
