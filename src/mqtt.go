@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"time"
@@ -25,34 +24,22 @@ var (
 )
 
 type MqttClient struct {
-	subTopic       string
-	pubTopic       string
-	mqttClient     pahomqtt.Client
-	ctxCancel      context.CancelFunc
-	ctxError       error
-	pair           brokerPair
-	b64Source      string
-	b64Destination string
-	subCh          chan struct{}
-	readyCh        chan struct{}
+	mqttClient pahomqtt.Client
+	ctxCancel  context.CancelFunc
+	ctxError   error
+	pair       brokerPair
+	subCh      chan struct{}
+	readyCh    chan struct{}
 }
 
 func NewClient(p brokerPair) *MqttClient {
-	b64Source := base64.RawURLEncoding.EncodeToString([]byte(p.source))
-	b64Destination := base64.RawURLEncoding.EncodeToString([]byte(p.destination))
-	clientID := fmt.Sprintf("%s-%s", b64Source, b64Destination)
-
 	client := &MqttClient{
-		subTopic:       fmt.Sprintf("mqtt_ping/%s/%s", b64Source, b64Destination),
-		pubTopic:       fmt.Sprintf("mqtt_ping/%s/%s", b64Destination, b64Source),
-		pair:           p,
-		b64Source:      b64Source,
-		b64Destination: b64Destination,
-		subCh:          make(chan struct{}),
-		readyCh:        make(chan struct{}),
+		pair:    p,
+		subCh:   make(chan struct{}),
+		readyCh: make(chan struct{}),
 	}
 
-	connOpts := pahomqtt.NewClientOptions().SetClientID(clientID).SetCleanSession(false).SetKeepAlive(0).SetConnectTimeout(1 * time.Second).AddBroker(p.source)
+	connOpts := pahomqtt.NewClientOptions().SetClientID(p.clientID).SetCleanSession(false).SetKeepAlive(0).SetConnectTimeout(1 * time.Second).AddBroker(p.source)
 	connOpts.OnConnect = client.onConnectHandler
 
 	mqttClient := pahomqtt.NewClient(connOpts)
@@ -65,8 +52,7 @@ func NewClient(p brokerPair) *MqttClient {
 }
 
 func (client *MqttClient) Publish() {
-	topic := fmt.Sprintf("mqtt_ping/%s/%s", client.b64Destination, client.b64Source)
-	pubToken := client.mqttClient.Publish(topic, byte(0), false, "ping")
+	pubToken := client.mqttClient.Publish(client.pair.publishTopic, byte(0), false, "ping")
 
 	<-pubToken.Done()
 	if pubToken.Error() != nil {
@@ -98,12 +84,12 @@ func (client *MqttClient) Stop(ctx context.Context) error {
 	go func() {
 		defer close(c)
 
-		unsubToken := client.mqttClient.Unsubscribe(client.subTopic)
+		unsubToken := client.mqttClient.Unsubscribe(client.pair.subscriptionTopic)
 
 		if unsubToken.Error() != nil {
-			fmt.Fprintf(os.Stderr, "Unable to gracefully unsubscribe from topic %s: %v\n", client.subTopic, unsubToken.Error())
+			fmt.Fprintf(os.Stderr, "Unable to gracefully unsubscribe from topic %s: %v\n", client.pair.subscriptionTopic, unsubToken.Error())
 		} else {
-			fmt.Printf("Unsubscribed from topic: %s\n", client.subTopic)
+			fmt.Printf("Unsubscribed from topic: %s\n", client.pair.subscriptionTopic)
 		}
 
 		client.mqttClient.Disconnect(250)
@@ -159,19 +145,19 @@ func (client *MqttClient) messageHandler(c pahomqtt.Client, m pahomqtt.Message) 
 func (client *MqttClient) onConnectHandler(c pahomqtt.Client) {
 	fmt.Println("Connected to mqtt broker")
 
-	subToken := c.Subscribe(client.subTopic, byte(0), client.messageHandler)
+	subToken := c.Subscribe(client.pair.subscriptionTopic, byte(0), client.messageHandler)
 
 	<-subToken.Done()
 	if subToken.Error() != nil {
-		fmt.Fprintf(os.Stderr, "Unable to subscribe to topic %s: %v\n", client.subTopic, subToken.Error())
+		fmt.Fprintf(os.Stderr, "Unable to subscribe to topic %s: %v\n", client.pair.subscriptionTopic, subToken.Error())
 		client.cancel(subToken.Error())
 		return
 	}
 
-	allowed := subscriptionAllowed(subToken, client.subTopic)
+	allowed := subscriptionAllowed(subToken, client.pair.subscriptionTopic)
 	if !allowed {
 		err := fmt.Errorf("subscription not allowed")
-		fmt.Fprintf(os.Stderr, "Subscription not allowed to topic %s: %v\n", client.subTopic, err)
+		fmt.Fprintf(os.Stderr, "Subscription not allowed to topic %s: %v\n", client.pair.subscriptionTopic, err)
 		client.cancel(err)
 		return
 	}
@@ -182,7 +168,7 @@ func (client *MqttClient) onConnectHandler(c pahomqtt.Client) {
 		close(client.readyCh)
 	}
 
-	fmt.Printf("Subscription started to topic: %s\n", client.subTopic)
+	fmt.Printf("Subscription started to topic: %s\n", client.pair.subscriptionTopic)
 }
 
 func subscriptionAllowed(token pahomqtt.Token, topic string) bool {
