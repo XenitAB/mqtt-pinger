@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
@@ -23,29 +22,11 @@ var (
 		Name: "mqtt_total_failed_ping",
 		Help: "Total number of failed ping",
 	}, []string{"source", "destination"})
-
-	metricsConnectionState = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "mqtt_client_connection_state",
-		Help: "Connection state of the MQTT client",
-	}, []string{"source", "destination"})
-
-	metricsCurrentReconnectAttempts = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "mqtt_client_current_reconnect_attempts",
-		Help: "Current number of reconnect attempts by the MQTT client",
-	}, []string{"source", "destination"})
-
-	metricsTotalReconnectAttempts = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "mqtt_client_total_reconnect_attempts",
-		Help: "Total number of reconnect attempts by the MQTT client",
-	}, []string{"source", "destination"})
 )
 
 type MqttClient struct {
 	subTopic       string
 	pubTopic       string
-	connected      bool
-	reconnectCount int
-	reconnectMu    sync.Mutex
 	mqttClient     pahomqtt.Client
 	ctxCancel      context.CancelFunc
 	ctxError       error
@@ -67,8 +48,8 @@ func NewClient(p brokerPair) *MqttClient {
 		pair:           p,
 		b64Source:      b64Source,
 		b64Destination: b64Destination,
-		subCh:          make(chan struct{}, 0),
-		readyCh:        make(chan struct{}, 0),
+		subCh:          make(chan struct{}),
+		readyCh:        make(chan struct{}),
 	}
 
 	connOpts := pahomqtt.NewClientOptions().SetClientID(clientID).SetCleanSession(false).SetKeepAlive(0).SetConnectTimeout(1 * time.Second).AddBroker(p.source)

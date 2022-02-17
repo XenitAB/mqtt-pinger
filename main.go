@@ -71,7 +71,7 @@ func run(mainCtx context.Context, cfg config) error {
 		doneMsg = "context"
 	}
 
-	shutdownCh := make(chan struct{}, 0)
+	shutdownCh := make(chan struct{})
 	go func() {
 		select {
 		case <-stopChan:
