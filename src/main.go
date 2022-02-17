@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	cfg, err := newConfig()
+	cfg, err := loadConfig(os.Args[1:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "config generation returned an error: %v\n", err)
 		os.Exit(1)
@@ -46,7 +46,7 @@ func run(mainCtx context.Context, cfg config) error {
 
 	g, gCtx := errgroup.WithContext(ctx)
 	for _, pair := range pairs {
-		pinger := NewPingClient(pair, 5*time.Second)
+		pinger := NewPingClient(pair, time.Duration(cfg.PingInterval)*time.Second)
 		g.Go(func() error {
 			return pinger.Run(gCtx)
 		})

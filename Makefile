@@ -49,6 +49,11 @@ cover:
 	go test -timeout 5m -coverprofile=tmp/coverage.out ./src/...
 	go tool cover -html=tmp/coverage.out
 
+.SILENT: run
+.PHONY: run
+run:
+	go run ./src/... --brokers 127.0.0.1:1883 127.0.0.1:1884 127.0.0.1:1885
+
 .SILENT: start-mqtt
 .PHONY: start-mqtt
 start-mqtt:
