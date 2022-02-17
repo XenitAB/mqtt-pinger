@@ -2,11 +2,11 @@ package main
 
 import "testing"
 
-func TestGetPairs(t *testing.T) {
+func TestGenerateBrokerPairs(t *testing.T) {
 	cases := []struct {
 		testDescription string
 		input           []string
-		output          []pair
+		output          []brokerPair
 		expectedError   string
 	}{
 		{
@@ -21,7 +21,7 @@ func TestGetPairs(t *testing.T) {
 		{
 			testDescription: "two strings",
 			input:           []string{"a", "b"},
-			output: []pair{
+			output: []brokerPair{
 				{
 					source:      "a",
 					destination: "b",
@@ -35,7 +35,7 @@ func TestGetPairs(t *testing.T) {
 		{
 			testDescription: "three strings",
 			input:           []string{"a", "b", "c"},
-			output: []pair{
+			output: []brokerPair{
 				{
 					source:      "a",
 					destination: "b",
@@ -65,7 +65,7 @@ func TestGetPairs(t *testing.T) {
 		{
 			testDescription: "four strings",
 			input:           []string{"a", "b", "c", "d"},
-			output: []pair{
+			output: []brokerPair{
 				{
 					source:      "a",
 					destination: "b",
@@ -120,7 +120,7 @@ func TestGetPairs(t *testing.T) {
 
 	for i, c := range cases {
 		t.Logf("Test #%d: %s", i, c.testDescription)
-		result, err := getPairs(c.input)
+		result, err := generateBrokerPairs(c.input)
 		testError(t, err, c.expectedError)
 
 		if len(c.output) != len(result) {

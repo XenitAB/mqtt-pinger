@@ -13,7 +13,7 @@ type Pinger interface {
 	Ready(ctx context.Context)
 }
 
-func startPing(ctx context.Context, tickerSeconds int, p pair, pinger Pinger) {
+func startPing(ctx context.Context, tickerSeconds int, p brokerPair, pinger Pinger) {
 	tickerDuration := time.Duration(tickerSeconds) * time.Second
 	ticker := time.NewTicker(tickerDuration)
 

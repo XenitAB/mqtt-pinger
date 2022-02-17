@@ -49,14 +49,14 @@ type MqttClient struct {
 	mqttClient     pahomqtt.Client
 	ctxCancel      context.CancelFunc
 	ctxError       error
-	pair           pair
+	pair           brokerPair
 	b64Source      string
 	b64Destination string
 	subCh          chan struct{}
 	readyCh        chan struct{}
 }
 
-func NewClient(p pair) *MqttClient {
+func NewClient(p brokerPair) *MqttClient {
 	b64Source := base64.RawURLEncoding.EncodeToString([]byte(p.source))
 	b64Destination := base64.RawURLEncoding.EncodeToString([]byte(p.destination))
 	clientID := fmt.Sprintf("%s-%s", b64Source, b64Destination)

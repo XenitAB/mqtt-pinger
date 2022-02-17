@@ -27,12 +27,12 @@ func main() {
 }
 
 func run(mainCtx context.Context, cfg config) error {
-	pairs, err := getPairs(cfg.Brokers)
+	pairs, err := generateBrokerPairs(cfg.Brokers)
 	if err != nil {
 		return err
 	}
 
-	pingers := make(map[*pair]*MqttClient)
+	pingers := make(map[*brokerPair]*MqttClient)
 	for i := range pairs {
 		p := &pairs[i]
 		pingers[p] = NewClient(*p)

@@ -2,17 +2,17 @@ package main
 
 import "fmt"
 
-type pair struct {
+type brokerPair struct {
 	source      string
 	destination string
 }
 
-func getPairs(list []string) ([]pair, error) {
+func generateBrokerPairs(list []string) ([]brokerPair, error) {
 	if len(list) < 2 {
 		return nil, fmt.Errorf("received %d item(s) in list but at least 2 are required", len(list))
 	}
 
-	var pairs []pair
+	var pairs []brokerPair
 	others := func(self string, all []string) []string {
 		others := []string{}
 		for _, other := range all {
@@ -25,7 +25,7 @@ func getPairs(list []string) ([]pair, error) {
 
 	for _, source := range list {
 		for _, destination := range others(source, list) {
-			pairs = append(pairs, pair{source, destination})
+			pairs = append(pairs, brokerPair{source, destination})
 		}
 	}
 
