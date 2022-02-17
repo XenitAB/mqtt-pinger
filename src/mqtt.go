@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
@@ -23,20 +24,24 @@ var (
 	}, []string{"source", "destination"})
 )
 
-type MqttClient struct {
-	mqttClient pahomqtt.Client
-	ctxCancel  context.CancelFunc
-	ctxError   error
-	pair       brokerPair
-	subCh      chan struct{}
-	readyCh    chan struct{}
+type PingClient struct {
+	mqttClient   pahomqtt.Client
+	pair         brokerPair
+	pingInterval time.Duration
+	subCh        chan struct{}
+	interruptCh  chan struct{}
+	interruptErr error
+	interruptMu  sync.Mutex
+	readyCh      chan struct{}
 }
 
-func NewClient(p brokerPair) *MqttClient {
-	client := &MqttClient{
-		pair:    p,
-		subCh:   make(chan struct{}),
-		readyCh: make(chan struct{}),
+func NewPingClient(p brokerPair, pingInterval time.Duration) *PingClient {
+	client := &PingClient{
+		pair:         p,
+		pingInterval: pingInterval,
+		subCh:        make(chan struct{}),
+		interruptCh:  make(chan struct{}),
+		readyCh:      make(chan struct{}),
 	}
 
 	connOpts := pahomqtt.NewClientOptions().SetClientID(p.clientID).SetCleanSession(false).SetKeepAlive(0).SetConnectTimeout(1 * time.Second).AddBroker(p.source)
@@ -51,7 +56,28 @@ func NewClient(p brokerPair) *MqttClient {
 	return client
 }
 
-func (client *MqttClient) Publish() {
+func (client *PingClient) Run(ctx context.Context) error {
+	token := client.mqttClient.Connect()
+	defer client.disconnect(5 * time.Second)
+
+	<-token.Done()
+	if token.Error() != nil {
+		return token.Error()
+	}
+
+	client.ready(ctx)
+
+	client.ping(ctx, client.pingInterval)
+
+	select {
+	case <-client.interruptCh:
+		return client.interruptErr
+	case <-ctx.Done():
+		return nil
+	}
+}
+
+func (client *PingClient) publish() {
 	pubToken := client.mqttClient.Publish(client.pair.publishTopic, byte(0), false, "ping")
 
 	<-pubToken.Done()
@@ -60,80 +86,37 @@ func (client *MqttClient) Publish() {
 	}
 }
 
-func (client *MqttClient) Ready(ctx context.Context) {
-	select {
-	case <-ctx.Done():
-	case <-client.readyCh:
-	}
-}
-
-func (client *MqttClient) IncrementReceivedPing() {
+func (client *PingClient) incrementReceivedPing() {
 	metricsTotalReceivedPing.WithLabelValues(client.pair.source, client.pair.destination).Inc()
 }
 
-func (client *MqttClient) IncrementFailedPing() {
+func (client *PingClient) incrementFailedPing() {
 	metricsTotalFailedPing.WithLabelValues(client.pair.source, client.pair.destination).Inc()
 }
 
-func (client *MqttClient) SubCh() <-chan struct{} {
-	return client.subCh
-}
+func (client *PingClient) ping(ctx context.Context, pingInterval time.Duration) {
+	tickerInterval := pingInterval * 2
+	ticker := time.NewTicker(tickerInterval)
 
-func (client *MqttClient) Stop(ctx context.Context) error {
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-
-		unsubToken := client.mqttClient.Unsubscribe(client.pair.subscriptionTopic)
-
-		if unsubToken.Error() != nil {
-			fmt.Fprintf(os.Stderr, "Unable to gracefully unsubscribe from topic %s: %v\n", client.pair.subscriptionTopic, unsubToken.Error())
-		} else {
-			fmt.Printf("Unsubscribed from topic: %s\n", client.pair.subscriptionTopic)
+	for {
+		select {
+		case <-client.interruptCh:
+			return
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			client.incrementFailedPing()
+		case <-client.subCh:
+			client.incrementReceivedPing()
+			ticker.Reset(tickerInterval)
+		default:
+			client.publish()
+			time.Sleep(pingInterval)
 		}
-
-		client.mqttClient.Disconnect(250)
-		fmt.Println("Disconnected from mqtt broker, stopping client")
-	}()
-
-	var err error
-	select {
-	case <-c:
-		err = nil
-	case <-ctx.Done():
-		err = ctx.Err()
 	}
-
-	return err
 }
 
-func (client *MqttClient) setContext(ctx context.Context) context.Context {
-	ctx, cancel := context.WithCancel(ctx)
-	client.ctxCancel = cancel
-	return ctx
-}
-
-func (client *MqttClient) cancel(err error) {
-	client.ctxError = err
-	client.ctxCancel()
-}
-
-func (client *MqttClient) Start(ctx context.Context) error {
-	ctx = client.setContext(ctx)
-	token := client.mqttClient.Connect()
-
-	<-token.Done()
-	if token.Error() != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to mqtt broker: %v\n", token.Error())
-		return token.Error()
-	}
-
-	<-ctx.Done()
-
-	return client.ctxError
-}
-
-func (client *MqttClient) messageHandler(c pahomqtt.Client, m pahomqtt.Message) {
+func (client *PingClient) messageHandler(c pahomqtt.Client, m pahomqtt.Message) {
 	if string(m.Payload()) != "ping" {
 		fmt.Fprintf(os.Stderr, "expected to receive 'ping' as payload but got: %s\n", string(m.Payload()))
 		return
@@ -142,23 +125,56 @@ func (client *MqttClient) messageHandler(c pahomqtt.Client, m pahomqtt.Message) 
 	client.subCh <- struct{}{}
 }
 
-func (client *MqttClient) onConnectHandler(c pahomqtt.Client) {
-	fmt.Println("Connected to mqtt broker")
+func (client *PingClient) ready(ctx context.Context) {
+	select {
+	case <-client.interruptCh:
+	case <-ctx.Done():
+	case <-client.readyCh:
+	}
+}
 
+func (client *PingClient) disconnect(timeout time.Duration) {
+	disconnectTimeout := time.NewTimer(timeout)
+	disconnectCh := make(chan struct{})
+
+	go func() {
+		_ = client.mqttClient.Unsubscribe(client.pair.subscriptionTopic)
+		client.mqttClient.Disconnect(250)
+		close(disconnectCh)
+	}()
+
+	select {
+	case <-disconnectCh:
+	case <-disconnectTimeout.C:
+	}
+}
+
+func (client *PingClient) interrupt(err error) {
+	client.interruptMu.Lock()
+
+	select {
+	case <-client.interruptCh:
+	default:
+		close(client.interruptCh)
+	}
+
+	client.interruptErr = err
+
+	client.interruptMu.Unlock()
+}
+
+func (client *PingClient) onConnectHandler(c pahomqtt.Client) {
 	subToken := c.Subscribe(client.pair.subscriptionTopic, byte(0), client.messageHandler)
 
 	<-subToken.Done()
 	if subToken.Error() != nil {
-		fmt.Fprintf(os.Stderr, "Unable to subscribe to topic %s: %v\n", client.pair.subscriptionTopic, subToken.Error())
-		client.cancel(subToken.Error())
+		client.interrupt(subToken.Error())
 		return
 	}
 
 	allowed := subscriptionAllowed(subToken, client.pair.subscriptionTopic)
 	if !allowed {
-		err := fmt.Errorf("subscription not allowed")
-		fmt.Fprintf(os.Stderr, "Subscription not allowed to topic %s: %v\n", client.pair.subscriptionTopic, err)
-		client.cancel(err)
+		client.interrupt(fmt.Errorf("subscription not allowed"))
 		return
 	}
 
@@ -167,8 +183,6 @@ func (client *MqttClient) onConnectHandler(c pahomqtt.Client) {
 	default:
 		close(client.readyCh)
 	}
-
-	fmt.Printf("Subscription started to topic: %s\n", client.pair.subscriptionTopic)
 }
 
 func subscriptionAllowed(token pahomqtt.Token, topic string) bool {

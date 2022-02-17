@@ -32,32 +32,24 @@ func run(mainCtx context.Context, cfg config) error {
 		return err
 	}
 
-	pingers := make(map[*brokerPair]*MqttClient)
-	for i := range pairs {
-		p := &pairs[i]
-		pingers[p] = NewClient(*p)
-	}
-
 	ctx, cancel := context.WithCancel(mainCtx)
 	defer cancel()
 
-	g, gCtx := errgroup.WithContext(ctx)
-
 	metrics := NewMetricsServer(cfg.MetricsAddress, cfg.MetricsPort)
-	g.Go(func() error {
-		return metrics.Start(gCtx)
-	})
+	go func() {
+		err := metrics.Start()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "unable to start metrics server: %v\n", err)
+			cancel()
+		}
+	}()
 
-	for i := range pairs {
-		p := &pairs[i]
+	g, gCtx := errgroup.WithContext(ctx)
+	for _, pair := range pairs {
+		pinger := NewPingClient(pair, 5*time.Second)
 		g.Go(func() error {
-			return pingers[p].Start(gCtx)
+			return pinger.Run(gCtx)
 		})
-	}
-
-	for i := range pairs {
-		p := &pairs[i]
-		go startPing(gCtx, cfg.TickerSeconds, *p, pingers[p])
 	}
 
 	stopChan := make(chan os.Signal, 2)
@@ -72,6 +64,7 @@ func run(mainCtx context.Context, cfg config) error {
 	}
 
 	shutdownCh := make(chan struct{})
+	defer close(shutdownCh)
 	go func() {
 		select {
 		case <-stopChan:
@@ -83,24 +76,24 @@ func run(mainCtx context.Context, cfg config) error {
 	}()
 
 	cancel()
-
 	fmt.Printf("server shutdown initiated by: %s\n", doneMsg)
+
+	err = g.Wait()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "unable to gracefully shutdown mqtt client: %v\n", err)
+	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer shutdownCancel()
-
-	for i := range pairs {
-		p := &pairs[i]
-		g.Go(func() error {
-			return pingers[p].Stop(shutdownCtx)
-		})
-	}
-
-	g.Go(func() error {
-		return metrics.Stop(shutdownCtx)
+	shutdownErrG, shutdownErrGCtx := errgroup.WithContext(shutdownCtx)
+	shutdownErrG.Go(func() error {
+		return metrics.Stop(shutdownErrGCtx)
 	})
 
-	err = g.Wait()
-	close(shutdownCh)
-	return err
+	err = shutdownErrG.Wait()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "unable to gracefully shutdown metrics server: %v\n", err)
+	}
+
+	return nil
 }

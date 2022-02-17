@@ -27,7 +27,7 @@ func NewMetricsServer(addr string, port int) *MetricsServer {
 	}
 }
 
-func (server *MetricsServer) Start(ctx context.Context) error {
+func (server *MetricsServer) Start() error {
 	err := server.httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		fmt.Fprintf(os.Stderr, "metrics server failed to start or stop gracefully: %v\n", err)
