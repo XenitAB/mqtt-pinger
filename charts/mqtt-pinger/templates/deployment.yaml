@@ -30,7 +30,7 @@ spec:
       containers:
         - name: {{ .Chart.Name }}
           args:
-            - --broker-address
+            - --brokers
             {{- range .Values.configuration.brokers }}
             - {{ . | quote }}
             {{- end }}
