@@ -23,7 +23,6 @@ linters:
     - nestif
     - goconst
     - gocritic
-    - godot
     - gofmt
     - revive
     - lll
@@ -34,6 +33,9 @@ linters:
     - staticcheck
     - thelper
     - whitespace
+  disable:
+    - godot
+
 
 linters-settings:
   gocyclo:
@@ -130,7 +132,7 @@ linters-settings:
     severity: warning
 
   lll:
-    line-length: 140
+    line-length: 160
     tab-width: 1
 
   makezero:

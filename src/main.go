@@ -45,8 +45,8 @@ func run(mainCtx context.Context, cfg config) error {
 	}()
 
 	g, gCtx := errgroup.WithContext(ctx)
-	for _, pair := range pairs {
-		pinger := NewPingClient(pair, time.Duration(cfg.PingInterval)*time.Second)
+	for i := range pairs {
+		pinger := NewPingClient(&pairs[i], time.Duration(cfg.PingInterval)*time.Second)
 		g.Go(func() error {
 			return pinger.Run(gCtx)
 		})

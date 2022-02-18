@@ -64,7 +64,7 @@ func TestStart(t *testing.T) {
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	pinger := NewPingClient(p, time.Duration(10*time.Millisecond))
+	pinger := NewPingClient(&p, time.Duration(10*time.Millisecond))
 	g.Go(func() error {
 		return pinger.Run(gCtx)
 	})

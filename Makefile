@@ -52,7 +52,7 @@ cover:
 .SILENT: run
 .PHONY: run
 run:
-	go run ./src/... --brokers 127.0.0.1:1883 127.0.0.1:1884 127.0.0.1:1885
+	go run ./src/... --ping-interval 1 --brokers 127.0.0.1:1883 127.0.0.1:1884 127.0.0.1:1885
 
 .SILENT: start-mqtt
 .PHONY: start-mqtt
@@ -76,5 +76,5 @@ stop-mqtt:
 e2e:
 	(
 		cd ./test
-		go test -v ./e2e_test.go
+		go test -v -timeout 120s ./e2e_test.go
 	)

@@ -35,9 +35,9 @@ type PingClient struct {
 	readyCh      chan struct{}
 }
 
-func NewPingClient(p brokerPair, pingInterval time.Duration) *PingClient {
+func NewPingClient(p *brokerPair, pingInterval time.Duration) *PingClient {
 	client := &PingClient{
-		pair:         p,
+		pair:         *p,
 		pingInterval: pingInterval,
 		subCh:        make(chan struct{}),
 		interruptCh:  make(chan struct{}),
