@@ -27,7 +27,7 @@ func main() {
 }
 
 func run(mainCtx context.Context, cfg config) error {
-	pairs, err := generateBrokerPairs(cfg.Brokers)
+	pairs, err := generateBrokerPairs(cfg.Brokers, cfg.ClientIDPrefix)
 	if err != nil {
 		return err
 	}
