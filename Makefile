@@ -74,4 +74,7 @@ stop-mqtt:
 .SILENT: e2e
 .PHONY: e2e
 e2e:
-	./test/endtoend.sh
+	(
+		cd ./test
+		go test -v ./e2e_test.go
+	)
