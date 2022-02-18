@@ -32,12 +32,12 @@ spec:
           args:
             - --broker-address
             {{- range .Values.configuration.brokers }}
-            - {{ . }}
+            - {{ . | quote }}
             {{- end }}
             - --metrics-port
-            - {{ .Values.configuration.metricsPort }}
+            - {{ .Values.configuration.metricsPort | quote }}
             - --ping-interval
-            - {{ .Values.configuration.pingInterval }}
+            - {{ .Values.configuration.pingInterval | quote }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
