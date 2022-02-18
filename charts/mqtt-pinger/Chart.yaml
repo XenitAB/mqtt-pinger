@@ -1,6 +1,0 @@
-apiVersion: v2
-name: mqtt-pinger
-description: A Helm chart for mqtt-pinger a service to test mqtt brokers
-type: application
-version: v0.0.0 # Will be updated during release
-appVersion: v0.0.0 # Will be updated during release
