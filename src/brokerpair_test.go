@@ -120,7 +120,7 @@ func TestGenerateBrokerPairs(t *testing.T) {
 
 	for i, c := range cases {
 		t.Logf("Test #%d: %s", i, c.testDescription)
-		result, err := generateBrokerPairs(c.input)
+		result, err := generateBrokerPairs(c.input, "mqtt-pinger")
 		testError(t, err, c.expectedError)
 
 		if len(c.output) != len(result) {

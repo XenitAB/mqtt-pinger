@@ -1,8 +1,10 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"math/big"
 )
 
 type brokerPair struct {
@@ -15,7 +17,7 @@ type brokerPair struct {
 	publishTopic      string
 }
 
-func generateBrokerPairs(list []string) ([]brokerPair, error) {
+func generateBrokerPairs(list []string, clientIdPrefix string) ([]brokerPair, error) {
 	if len(list) < 2 {
 		return nil, fmt.Errorf("received %d item(s) in list but at least 2 are required", len(list))
 	}
@@ -35,7 +37,13 @@ func generateBrokerPairs(list []string) ([]brokerPair, error) {
 		for _, destination := range others(source, list) {
 			base64Source := base64.RawURLEncoding.EncodeToString([]byte(source))
 			base64Destination := base64.RawURLEncoding.EncodeToString([]byte(destination))
-			clientID := fmt.Sprintf("%s-%s", base64Source, base64Destination)
+
+			randomString, err := generateRandomString(8)
+			if err != nil {
+				return nil, err
+			}
+			clientID := fmt.Sprintf("%s-%s", clientIdPrefix, randomString)
+
 			subscriptionTopic := fmt.Sprintf("mqtt_ping/%s/%s", base64Source, base64Destination)
 			publishTopic := fmt.Sprintf("mqtt_ping/%s/%s", base64Destination, base64Source)
 
@@ -53,4 +61,18 @@ func generateBrokerPairs(list []string) ([]brokerPair, error) {
 	}
 
 	return pairs, nil
+}
+
+func generateRandomString(n int) (string, error) {
+	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	ret := make([]byte, n)
+	for i := 0; i < n; i++ {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+		if err != nil {
+			return "", err
+		}
+		ret[i] = letters[num.Int64()]
+	}
+
+	return string(ret), nil
 }
