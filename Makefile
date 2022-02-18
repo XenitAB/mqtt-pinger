@@ -76,5 +76,5 @@ stop-mqtt:
 e2e:
 	(
 		cd ./test
-		go test -v -timeout 120s ./e2e_test.go
+		go test -v -timeout 5m ./e2e_test.go
 	)
