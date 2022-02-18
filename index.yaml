@@ -3,12 +3,12 @@ entries:
   mqtt-pinger:
   - apiVersion: v2
     appVersion: v0.0.1
-    created: "2022-02-18T14:55:06.529095545Z"
+    created: "2022-02-18T15:04:07.934147194Z"
     description: A Helm chart for mqtt-pinger a service to test mqtt brokers
-    digest: 3f3f421791ce711a293a0f47409fc68e188b47ec65051848919ecb5b42015f95
+    digest: bcbe0192a30709eab885ef1bff4ebfffdb9934342611ca0370833db6d7888c0b
     name: mqtt-pinger
     type: application
     urls:
     - https://XenitAB.github.io/mqtt-pinger/mqtt-pinger-v0.0.1.tgz
     version: v0.0.1
-generated: "2022-02-18T14:55:06.528604127Z"
+generated: "2022-02-18T15:04:07.932804087Z"
