@@ -69,7 +69,7 @@ func TestStart(t *testing.T) {
 		return pinger.Run(gCtx)
 	})
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(400 * time.Millisecond)
 
 	cancel()
 
