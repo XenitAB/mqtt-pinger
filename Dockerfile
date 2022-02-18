@@ -1,5 +1,5 @@
 # BUILDER
-FROM golang:1.17.2-bullseye as builder
+FROM golang:1.17.7-bullseye as builder
 WORKDIR /workspace
 
 COPY go.mod go.mod
