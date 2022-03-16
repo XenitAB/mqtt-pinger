@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -78,9 +79,11 @@ func run(mainCtx context.Context, cfg config) error {
 	cancel()
 	fmt.Printf("server shutdown initiated by: %s\n", doneMsg)
 
+	var result error
 	err = g.Wait()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "unable to gracefully shutdown mqtt client: %v\n", err)
+		result = multierror.Append(result, err)
 	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -93,7 +96,8 @@ func run(mainCtx context.Context, cfg config) error {
 	err = shutdownErrG.Wait()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "unable to gracefully shutdown metrics server: %v\n", err)
+		result = multierror.Append(result, err)
 	}
 
-	return nil
+	return result
 }
