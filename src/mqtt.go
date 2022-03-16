@@ -98,6 +98,8 @@ func (client *PingClient) ping(ctx context.Context, pingInterval time.Duration) 
 	tickerInterval := pingInterval * 2
 	ticker := time.NewTicker(tickerInterval)
 
+	fmt.Printf("pinger started (interval: %s): %s -> %s\n", pingInterval.String(), client.pair.source, client.pair.destination)
+
 	for {
 		select {
 		case <-client.interruptCh:
