@@ -8,7 +8,7 @@ require (
 	github.com/fhmq/hmq v0.0.0-20220130011429-94ff8e84055d
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
-	github.com/prometheus/client_golang v1.12.1
+	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.32.1
 	github.com/stretchr/testify v1.7.0
