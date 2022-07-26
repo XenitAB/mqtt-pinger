@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -19,8 +20,9 @@ type MetricsServer struct {
 // NewMetricsServer returns a metrics server
 func NewMetricsServer(addr string, port int) *MetricsServer {
 	srv := &http.Server{
-		Addr:    net.JoinHostPort(addr, fmt.Sprintf("%d", port)),
-		Handler: promhttp.Handler(),
+		Addr:              net.JoinHostPort(addr, fmt.Sprintf("%d", port)),
+		Handler:           promhttp.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	return &MetricsServer{
