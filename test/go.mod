@@ -1,6 +1,6 @@
 module test
 
-go 1.17
+go 1.19
 
 require (
 	github.com/ory/dockertest/v3 v3.8.1
