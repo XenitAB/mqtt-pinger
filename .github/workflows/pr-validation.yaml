@@ -14,13 +14,13 @@ jobs:
       - name: Clone repo
         uses: actions/checkout@v3
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
-          go-version: "^1.17"
+          go-version: "^1.19"
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3.1.0
+        uses: golangci/golangci-lint-action@v3.2.0
         with:
-          version: v1.47.2
+          version: v1.48.0
 
   fmt:
     runs-on: ubuntu-latest
@@ -28,9 +28,9 @@ jobs:
       - name: Clone repo
         uses: actions/checkout@v3
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
-          go-version: "^1.17"
+          go-version: "^1.19"
       - name: Run fmt
         run: |
           make fmt
@@ -48,9 +48,9 @@ jobs:
       - name: Clone repo
         uses: actions/checkout@v3
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
-          go-version: "^1.17"
+          go-version: "^1.19"
       - name: Run build
         run: |
           make build
@@ -61,9 +61,9 @@ jobs:
       - name: Clone repo
         uses: actions/checkout@v3
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
-          go-version: "^1.17"
+          go-version: "^1.19"
       - name: Run test
         run: |
           make test
@@ -86,16 +86,16 @@ jobs:
         with:
           dockerfile: Dockerfile
       - name: Cache container layers
-        uses: actions/cache@v2.1.7
+        uses: actions/cache@v3.0.6
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1.2.0
+        uses: docker/setup-qemu-action@v2.0.0
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1.6.0
+        uses: docker/setup-buildx-action@v2.0.0
       - name: Build and load (current arch)
         run: |
           docker buildx build --load -t ${{ env.NAME }}:${{ steps.prep.outputs.VERSION }} .
