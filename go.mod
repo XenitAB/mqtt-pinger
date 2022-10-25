@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/alexflint/go-arg v1.4.3
-	github.com/eclipse/paho.mqtt.golang v1.4.1
+	github.com/eclipse/paho.mqtt.golang v1.4.2
 	github.com/fhmq/hmq v0.0.0-20220130011429-94ff8e84055d
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
